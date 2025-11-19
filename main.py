@@ -1,6 +1,6 @@
 import tkinter as tk
-from LexicoUI import LexicalAnalyzerGUI
+from AigisCUI import AigisCUI
 
 root = tk.Tk()
-app = LexicalAnalyzerGUI(root)
+app = AigisCUI(root)
 root.mainloop()
