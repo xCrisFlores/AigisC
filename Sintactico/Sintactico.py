@@ -492,8 +492,15 @@ class Sintactico:
             self.error("Tipo de dato esperado")
             return None
 
-        name = self.comparar("Identificador")
+        name = self.comparar("Identificador") 
 
+        es_array = False
+        if self.actual() and self.actual().tipo == "CorcheteIzq":
+            self.comparar("CorcheteIzq")
+            self.comparar("CorcheteDer")
+            es_array = True
+            tipo_token += "[]" 
+        
         valor_node = None
         if self.actual() and self.actual().tipo == "Asignacion":
             self.comparar("Asignacion")
@@ -502,21 +509,55 @@ class Sintactico:
             else:
                 valor_node = self.expresion()
 
+        # --- INICIO DE LA CORRECCIÓN DEL PUNTO Y COMA ---
         if self.actual() and self.actual().tipo == "PuntoComa":
-            self.avanzar()
+            self.avanzar() # Se encontró el punto y coma, todo bien.
         elif not in_paren:
-            pass
+            # Si NO estamos en un paréntesis (ej. 'for') Y no se encontró el ';', es un error.
+            self.error("Se esperaba ';' al final de la declaración.")
+        # Si 'in_paren' es True y no hay ';', no hacemos nada (pass implícito),
+        # asumiendo que el contexto superior lo manejará.
+        # --- FIN DE LA CORRECCIÓN ---
+
+        # --- Lógica para 'valor' (sin cambios) ---
+        valor_literal = None
+        if valor_node:
+            if valor_node.tipo == "Numero":
+                try:
+                    if '.' in valor_node.valor:
+                        valor_literal = float(valor_node.valor)
+                    else:
+                        valor_literal = int(valor_node.valor)
+                except:
+                    valor_literal = valor_node.valor 
+            elif valor_node.tipo == "Cadena":
+                valor_literal = valor_node.valor.strip('"') 
+            elif valor_node.tipo == "Booleano":
+                valor_literal = (valor_node.valor == "true")
+        
+        # --- Lógica para 'estructura' (sin cambios) ---
+        estructura_info = None
+        if es_array:
+            estructura_info = {
+                "tipo": "array",
+                "tipo_base": tipo_token[:-2] 
+            }
+        elif tipo_token not in self.primarios and tipo_token not in ("mapInt", "mapString"):
+            estructura_info = {
+                "tipo": "struct/model",
+                "nombre_tipo": tipo_token 
+            }
 
         simbolo = {
             "identificador": name.valor if name else None,
             "categoria": "variable",
-            "tipo_dato": tipo_token,
+            "tipo_dato": tipo_token, 
             "ambito": ("global" if "global" in modifiers else "local"),
             "direccion_memoria": None,
             "linea": (name.linea if name else None),
-            "valor": None,
+            "valor": valor_literal,
             "estado": "declarado",
-            "estructura": None,
+            "estructura": estructura_info,
             "referencias": 0
         }
         self.tabla.agregar(simbolo)
@@ -578,8 +619,11 @@ class Sintactico:
             "estructura": None,
             "referencias": 1
         }
-        if not any(s.get("identificador") == simbolo["identificador"] for s in self.tabla.simbolos):
-            self.tabla.agregar(simbolo)
+        
+        # CORRECCIÓN: Uso de búsqueda optimizada en lugar de 'any(...)'
+        ident_val = simbolo["identificador"]
+        if ident_val and not self.tabla.buscar(ident_val):
+             self.tabla.agregar(simbolo)
         
         return Nodo("Asignacion", valor=(f"{ident.valor} {operador.valor}" if ident and operador else None), 
                    hijos=[expr])
