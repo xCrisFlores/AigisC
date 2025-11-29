@@ -7,7 +7,7 @@ import tkinter as tk
 class AigisCUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Analizador Léxico y Sintáctico")
+        self.root.title("Aigis C - Compilador")
         self.root.geometry("1200x700")
         
         self.lexico = Lexico()
@@ -46,7 +46,7 @@ class AigisCUI:
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
         tk.Label(right_frame, text="Tabla de Símbolos (Memoria + Archivo):").pack(anchor="w")
-        self.symbol_display = scrolledtext.ScrolledText(right_frame, height=20, width=50)
+        self.symbol_display = scrolledtext.ScrolledText(right_frame, height=20, width=80, font=('Courier', 8))
         self.symbol_display.pack(fill=tk.BOTH, expand=True)
 
         # --- Monitor de Memoria ---
@@ -96,6 +96,8 @@ class AigisCUI:
         self.symbol_display.delete("1.0", tk.END)
 
         code = self.code_editor.get("1.0", tk.END)
+
+        self.codigo_original = code
 
         try:
            
@@ -167,25 +169,26 @@ class AigisCUI:
             )
 
     def toggle_optimize(self):
-            """Optimizar o revertir el código en el editor"""
-            if not self.ast_optimizado:
-                return  # No hay AST compilado
+        if not hasattr(self, "ast_optimizado") or not self.ast_optimizado:
+            return
 
-            if not self.optimizado:
-                # Optimizar: generar código optimizado y reemplazar
-                from Semantico.Optimizador import OptimizadorCodigo
-                optimizador = OptimizadorCodigo()
-                codigo_opt = optimizador.generar_codigo(self.ast_optimizado)  # Método que devuelva string
-                self.code_editor.delete("1.0", tk.END)
-                self.code_editor.insert("1.0", codigo_opt)
-                self.optimize_btn.config(text="Revertir")
-                self.optimizado = True
-            else:
-                # Revertir al código original
-                self.code_editor.delete("1.0", tk.END)
-                self.code_editor.insert("1.0", self.codigo_original)
-                self.optimize_btn.config(text="Optimizar")
-                self.optimizado = False
+        if not getattr(self, "optimizado", False):
+            from Semantico.Optimizador import OptimizadorCodigo
+            optimizador = OptimizadorCodigo()
+            codigo_opt = optimizador.generar_codigo(self.ast_optimizado)
+            if not codigo_opt or not codigo_opt.strip():
+                self.error_display.insert(tk.END, "Optimización no produjo código válido. Revisión del optimizador necesaria.\n", 'error')
+                self.error_display.tag_config('error', foreground='red')
+                return
+            self.code_editor.delete("1.0", tk.END)
+            self.code_editor.insert("1.0", codigo_opt)
+            self.optimize_btn.config(text="Revertir")
+            self.optimizado = True
+        else:
+            self.code_editor.delete("1.0", tk.END)
+            self.code_editor.insert("1.0", getattr(self, "codigo_original", ""))
+            self.optimize_btn.config(text="Optimizar")
+            self.optimizado = False
 
 if __name__ == "__main__":
     root = tk.Tk()

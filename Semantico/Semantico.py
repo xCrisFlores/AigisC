@@ -1,7 +1,3 @@
-from typing import Dict, List, Set, Tuple, Optional
-from collections import defaultdict
-import copy
-
 from Semantico.Optimizador import OptimizadorCodigo
 from Semantico.ErrorSemantico import ErrorSemantico
 from Semantico.TablaSemantica import TablaSemantica
@@ -728,7 +724,15 @@ def ejecutar_analisis_semantico(ast, tabla_simbolos, optimizar=False):
     ast_final = ast
     if optimizar and not analizador.errores.tiene_errores():
         optimizador = OptimizadorCodigo()
-        ast_final = optimizador.optimizar(ast)
+        try:
+            # Pasar la tabla semántica para optimizaciones globales
+            posible_ast = optimizador.optimizar(ast, analizador.tabla_semantica)
+            if posible_ast:
+                ast_final = posible_ast
+            else:
+                print("[Semántico] Optimización no produjo un AST válido. Se mantiene el AST original.")
+        except Exception as e:
+            print(f"[Semántico] Error al optimizar el AST: {e}. Se mantiene el AST original.")
     
     return errores, ast_final, analizador.tabla_semantica
 
